@@ -1,0 +1,279 @@
+import streamlit as st
+import pickle
+import requests
+
+# Set page config
+st.set_page_config(page_title="Movie Recommender", layout="wide")
+
+# Custom CSS
+st.markdown("""
+ <style>
+.main-title {
+    font-size: 48px;
+    color: #00adb5;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+.subtext {
+    font-size: 20px;
+    text-align: center;
+    color: #eeeeee;
+    margin-bottom: 40px;
+}
+.section-title {
+    font-size: 28px;
+    color: #f39c12;
+    margin: 30px 0 10px 0;
+    font-weight: bold;
+}
+.stApp {
+    background-color: #222831;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Header
+st.markdown('<div class="main-title">🎬 Movie Recommender System</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtext">Get the top 5 similar movies based on your choice</div>', unsafe_allow_html=True)
+
+# Load data
+movies = pickle.load(open('movie.pkl', 'rb'))
+similarity = pickle.load(open('similarity.pkl', 'rb'))
+movie_list = movies['original_title'].values
+
+# Initialize session state for movie flow
+if "selected_movie" not in st.session_state:
+    st.session_state.selected_movie = None
+if "recommended_triggered" not in st.session_state:
+    st.session_state.recommended_triggered = False
+
+def fetch_poster(title):
+    url = f"http://www.omdbapi.com/?t={title}&apikey=c853b243"
+    response = requests.get(url)
+    data = response.json()
+    return data.get('Poster', 'https://via.placeholder.com/150')
+
+def recommend(movie):
+    index = movies[movies['original_title'] == movie].index[0]
+    distances = similarity[index]
+    movie_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
+    recommended = []
+    for i in movie_list:
+        title = movies.iloc[i[0]].original_title
+        poster = fetch_poster(title)
+        recommended.append((title, poster))
+    return recommended
+
+def show_movie_details(movie_title):
+    url = f"http://www.omdbapi.com/?t={movie_title}&apikey=c853b243"
+    response = requests.get(url)
+    data = response.json()
+
+    st.image(data.get('Poster', 'https://via.placeholder.com/300'), width=300)
+    st.markdown(f"<h2 style='color: #ffffff;'>{movie_title}</h2>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #dddddd;'><strong>Plot:</strong> {data.get('Plot', 'N/A')}</p>",
+                unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #dddddd;'><strong>Director:</strong> {data.get('Director', 'N/A')}</p>",
+                unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #dddddd;'><strong>Writers:</strong> {data.get('Writer', 'N/A')}</p>",
+                unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #dddddd;'><strong>Stars:</strong> {data.get('Actors', 'N/A')}</p>",
+                unsafe_allow_html=True)
+
+    imdb = data.get('imdbID')
+    if imdb:
+        st.markdown(f"[🔗 View on IMDb](https://www.imdb.com/title/{imdb})", unsafe_allow_html=True)
+
+    st.markdown("---")
+    top_trending()
+
+    # Back button
+    if st.button("⬅️ Back to Recommendations"):
+        st.session_state.selected_movie = None
+        st.session_state.recommended_triggered = True
+        st.rerun()
+
+def top_trending():
+    st.markdown('<div class="section-title">🔥 You may also like</div>', unsafe_allow_html=True)
+    popular = movies.head(10)
+    cols = st.columns(5)
+    for idx, col in enumerate(cols * 2):
+        title = popular.iloc[idx].original_title
+        poster = fetch_poster(title)
+        with col:
+            st.image(poster, use_container_width=True)
+            st.caption(title)
+
+def show_recommendation(movie):
+    recommended = recommend(movie)
+    st.markdown('<div class="section-title">🎯 Top 5 Recommended Movies</div>', unsafe_allow_html=True)
+    cols = st.columns(5)
+    for idx, (title, poster) in enumerate(recommended):
+        with cols[idx]:
+            if st.button(f"{title}", key=f"rec_{idx}"):
+                st.session_state.selected_movie = title
+                st.rerun()
+            st.image(poster, use_container_width=True)
+
+
+# ------------------------------
+# ROUTING & PAGE DISPLAY LOGIC
+# ------------------------------
+if st.session_state.selected_movie:
+    show_movie_details(st.session_state.selected_movie)
+
+elif st.session_state.recommended_triggered:
+    show_recommendation(st.session_state.last_selected)
+    top_trending()
+
+else:
+    selected_movie_name = st.selectbox("Select a movie", movie_list)
+    if st.button("🔍 Recommend Movies"):
+        st.session_state.recommended_triggered = True
+        st.session_state.last_selected = selected_movie_name
+        st.rerun()
+    top_trending()
+
+# Footer
+st.markdown("""
+<hr>
+<p style='text-align: center; color: grey;'>
+    Made with ❤️ by Nisha | Powered by Streamlit
+</p>
+""", unsafe_allow_html=True)
+
+
+
+
+import streamlit as st
+import pickle
+import requests
+
+# Set page config
+st.set_page_config(page_title="Movie Recommender", layout="wide")
+
+# Custom CSS
+st.markdown("""
+ <style>
+.main-title {
+    font-size: 48px;
+    color: #00adb5;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+.subtext {
+    font-size: 20px;
+    text-align: center;
+    color: #eeeeee;
+    margin-bottom: 40px;
+}
+.section-title {
+    font-size: 28px;
+    color: #f39c12;
+    margin: 30px 0 10px 0;
+    font-weight: bold;
+}
+.stApp {
+    background-color: #222831;
+}
+</style>
+
+""", unsafe_allow_html=True)
+
+# Header
+st.markdown('<div class="main-title">🎬 Movie Recommender System</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtext">Get the top 5 similar movies based on your choice</div>', unsafe_allow_html=True)
+
+# Load data
+movies = pickle.load(open('movie.pkl', 'rb'))
+similarity = pickle.load(open('similarity.pkl', 'rb'))
+movie_list = movies['original_title'].values
+
+
+def fetch_poster(title):
+    url = f"http://www.omdbapi.com/?t={title}&apikey=c853b243"
+    response = requests.get(url)
+    data = response.json()
+    return data.get('Poster', 'https://via.placeholder.com/150')
+
+
+def recommend(movie):
+    index = movies[movies['original_title'] == movie].index[0]
+    distances = similarity[index]
+    movie_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
+
+    recommended = []
+    for i in movie_list:
+        title = movies.iloc[i[0]].original_title
+        poster = fetch_poster(title)
+        recommended.append((title, poster))
+    return recommended
+
+
+def show_movie_details(movie_title):
+    url = f"http://www.omdbapi.com/?t={movie_title}&apikey=c853b243"
+    response = requests.get(url)
+    data = response.json()
+
+    st.image(data.get('Poster', 'https://via.placeholder.com/300'), width=300)
+    st.markdown(f"## {movie_title}")
+    st.markdown(f"**Plot:** {data.get('Plot', 'N/A')}")
+    st.markdown(f"**Director:** {data.get('Director', 'N/A')}")
+    st.markdown(f"**Writers:** {data.get('Writer', 'N/A')}")
+    st.markdown(f"**Stars:** {data.get('Actors', 'N/A')}")
+    imdb = data.get('imdbID')
+    if imdb:
+        st.markdown(f"[🔗 View on IMDb](https://www.imdb.com/title/{imdb})", unsafe_allow_html=True)
+
+    top_trending()
+
+def top_trending():
+    # Show 10 hit/popular movies
+    st.markdown('<div class="section-title">🔥 You may also like</div>', unsafe_allow_html=True)
+    popular = movies.head(10)
+    cols = st.columns(5)
+    for idx, col in enumerate(cols * 2):
+        title = popular.iloc[idx].original_title
+        poster = fetch_poster(title)
+        with col:
+            st.image(poster, use_container_width=True)
+            st.caption(title)
+
+def show_recommendation(selected_movie_name):
+    recommended = recommend(selected_movie_name)
+
+    st.markdown('<div class="section-title">🎯 Top 5 Recommended Movies</div>', unsafe_allow_html=True)
+
+    cols = st.columns(5)
+    for idx, (title, poster) in enumerate(recommended):
+        # print(title, poster, "This")
+        with cols[idx]:
+            if st.button(title, key=f"rec_{idx}"):
+                params.update(movie=title)
+                st.rerun()
+            st.image(poster, use_container_width=True)
+            # st.caption(title)
+
+
+# Handling routing using query parameters
+params = st.session_state
+print(params)
+
+if "movie" in params:
+    selected = params["movie"][0]  # Query params return a list
+    st.title("The title is", selected)
+    show_movie_details(selected)
+else:
+    selected_movie_name = st.selectbox("Select a movie", movie_list)
+    if st.button("🔍 Recommend Movies"):
+        show_recommendation(selected_movie_name)
+    top_trending()
+# Footer
+st.markdown("""
+<hr>
+<p style='text-align: center; color: grey;'>
+    Made with ❤️ by Nisha | Powered by Streamlit
+</p>
+""", unsafe_allow_html=True)
